@@ -1,6 +1,6 @@
-FROM Centos:7.2
+FROM centos
 
-MAINTAINER Vijay vpadigel@gmail.com
+MAINTAINER Venoodk venood.khatuva12@gmail.com
 
 ENV SPLUNK_BACKUP_APP /var/opt/splunk/etc/apps
 ENV DOCKER_VERSION 17.06.2
@@ -13,7 +13,7 @@ RUN rpm -Uvh http://del-mirrors.extreme-ix.org/epel//epel-release-latest-7.noarc
 
 # Create user
 RUN useradd splunk \
- && echo "sensu" | passwd sensu --stdin \
+ && echo "changeme" | passwd splunk --stdin \
  && sed -ri 's/UsePAM yes/#UsePAM yes/g' /etc/ssh/sshd_config \
  && sed -ri 's/#UsePAM no/UsePAM no/g' /etc/ssh/sshd_config \
  && echo "splunk ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/splunk
