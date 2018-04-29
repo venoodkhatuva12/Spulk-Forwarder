@@ -2,7 +2,7 @@ FROM centos
 
 MAINTAINER Venoodk venood.khatuva12@gmail.com
 
-ENV SPLUNK_BACKUP_APP /var/opt/splunk/etc/apps
+ENV SPLUNK_BACKUP_APP /opt/splunkforwarder/etc/apps
 ENV DOCKER_VERSION 17.06.2
 
 # Basic packages
@@ -18,12 +18,15 @@ RUN useradd splunk \
  && sed -ri 's/#UsePAM no/UsePAM no/g' /etc/ssh/sshd_config \
  && echo "splunk ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/splunk
  
-COPY ./rmp-files/splunkforwarder-6.5.3-36937ad027d4-linux-2.6-x86_64.rpm /tmp/
+
+ADD rpm-files/splunkforwarder-6.5.3-36937ad027d4-linux-2.6-x86_64.rpm /tmp/
 RUN rpm -ivh /tmp/splunkforwarder-6.5.3-36937ad027d4-linux-2.6-x86_64.rpm
+
+RUN ls -lah /opt/
 
 COPY ta-dockerlogs_fileinput ${SPLUNK_BACKUP_APP}/ta-dockerlogs_fileinput
 COPY ta-dockerstats ${SPLUNK_BACKUP_APP}/ta-dockerstats
-RUN chmod +x ${SPLUNK_BACKUP_APP}/ta-dockerstats/bin/*.sh 
+RUN chmod +x ${SPLUNK_BACKUP_APP}/ta-dockerstats/bin/*.sh
 RUN wget -qO ${SPLUNK_BACKUP_APP}/ta-dockerstats/bin/docker-${DOCKER_VERSION}-ce.tgz https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_VERSION}-ce.tgz \
     && mkdir ${SPLUNK_BACKUP_APP}/ta-dockerstats/bin/tmp \
     && tar xzvf ${SPLUNK_BACKUP_APP}/ta-dockerstats/bin/docker-${DOCKER_VERSION}-ce.tgz -C ${SPLUNK_BACKUP_APP}/ta-dockerstats/bin/tmp \
@@ -31,23 +34,24 @@ RUN wget -qO ${SPLUNK_BACKUP_APP}/ta-dockerstats/bin/docker-${DOCKER_VERSION}-ce
     && mv ${SPLUNK_BACKUP_APP}/ta-dockerstats/bin/tmp/docker/* ${SPLUNK_BACKUP_APP}/ta-dockerstats/bin \
     && chmod +x ${SPLUNK_BACKUP_APP}/ta-dockerstats/bin/docker
 
-RUN rm -rvf \
-      /tmp/* \
-      /var/tmp/*
-
-RUN chown -R splunk:splunk /opt/splunk
-RUN chmod -R 777 /opt/splunk
-RUN chown splunk:splunk ${SPLUNK_BACKUP_APP}/ta-dockerstats/bin/*.sh
-RUN chown splunk:splunk ${SPLUNK_BACKUP_APP}/ta-dockerstats/bin/docker
+RUN sudo chown splunk:splunk ${SPLUNK_BACKUP_APP}/ta-dockerstats/bin/*.sh
+RUN sudo chown splunk:splunk ${SPLUNK_BACKUP_APP}/ta-dockerstats/bin/docker
 RUN mkdir -p /opt/splunkforwarder/etc/apps/sb_cdx_${SERVER}/local/
-COPY config-files/inputs.conf /opt/splunkforwarder/etc/apps/sb_cdx_${SERVER}/local/inputs.conf
+RUN cd /opt/splunkforwarder/etc/apps/sb_cdx_${SERVER}/local/
+COPY config-files/inputs.conf inputs.conf
+RUN sed -i "s/ENVO/${SERVER}/g" inputs.conf
 COPY config-files/deploymentclient.conf /opt/splunkforwarder/etc/system/default/deploymentclient.conf
 CMD /opt/splunkforwarder/bin/splunk start --accept-license --answer-yes \
     && /opt/splunkforwarder/bin/splunk set deploy-poll ${SPLUNK_DEPLOYMENT_SERVER} -auth ${SPLUNKUSER} \
     && sudo /opt/splunkforwarder/bin/splunk enable boot-start -user splunk 
-RUN sed -i "s/DEPLOYMENT_SERVER/${SPLUNK_DEPLOYMENT_SERVER}/g" deploymentclient.conf
-RUN sed -i "s/ENVO/${SERVER}g" inputs.conf
+RUN sed -i "s/DEPLOYMENT_SERVER/${SPLUNK_DEPLOYMENT_SERVER}/g" /opt/splunkforwarder/etc/system/default/deploymentclient.conf
 
-CMD ["/opt/splunkforwarder/bin/splunk restart"]
+RUN rm -rvf \
+      /tmp/* \
+      /var/tmp/*
 
+RUN sudo chown -R splunk:splunk /opt/splunkforwarder
+RUN sudo  chmod -R 777 /opt/splunkforwarder
+RUN sudo chown -R splunk:splunk ${SPLUNK_BACKUP_APP}
+RUN sudo  chmod -R 777 ${SPLUNK_BACKUP_APP}
 
